@@ -1,9 +1,7 @@
 import requests
 import json
-# from GmailWorker import send_email
-# from WaitUtils import wait_minutes
-from utils.GmailWorker import send_email
-from utils.WaitUtils import wait_minutes
+from utils.gmail_worker import send_email
+from utils.wait_utils import wait_minutes
 
 import argparse
 
