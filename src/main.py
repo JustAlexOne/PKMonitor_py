@@ -1,5 +1,8 @@
+import traceback
 import requests
 import json
+import sys
+
 from utils.gmail_worker import send_email
 from utils.wait_utils import wait_minutes
 
@@ -33,11 +36,11 @@ def differWithPrevious(prev, new):
 def doAll(previous_res, movie_id):
     # movie_id=movie_id
     seats_request = "https://pay.planetakino.ua/api/v1/cart/halls?showtimeId={0}".format(movie_id)
-    movie_link="https://pay.planetakino.ua/hall/pk-kharkov/{0}".format(movie_id)
+    movie_link = "https://pay.planetakino.ua/hall/pk-kharkov/{0}".format(movie_id)
     print("Sending seats request")
     response = requests.get(seats_request)
-    assert response.status_code == 200
-    print("response 200")
+
+    validateResponse(response, movie_id, seats_request)
 
     print("Parsing json")
     parsed_json = json.loads(response.text)
@@ -49,8 +52,8 @@ def doAll(previous_res, movie_id):
 
     print("Searching for suitable available seats:")
 
-    rows  = range(7,12)
-    places = range(7,22)
+    rows = range(7, 12)
+    places = range(7, 22)
 
     expectedSeats = genExpectedSeats(rows, places)
     availableSeats = findSeats(emptySeats, expectedSeats)
@@ -59,7 +62,7 @@ def doAll(previous_res, movie_id):
     if availableSeats:
         if differWithPrevious(previous_res, availableSeats):
             send_email("alex.cherevatiy@gmail.com", "Found [{0}] seats for you".format(len(availableSeats)),
-                               createBody(availableSeats, movie_link))
+                       createBody(availableSeats, movie_link))
         else:
             print("No difference found with previous list")
 
@@ -67,13 +70,24 @@ def doAll(previous_res, movie_id):
         print("No available seats found, not sending email")
     return availableSeats
 
+
+def validateResponse(response, showTimeId, request_url):
+    if (response.status_code == 200): pass
+
+    if (response.status_code == 400):
+        print(f"showtimeId [{showTimeId}] not found. Probably showtime has ended")
+        print(f"Request url: {request_url}")
+        sys.exit(-1)
+
 def createBody(seatsList, movie_link):
-    res = "Found {0} available seats.\nList of seats: {1}.\nLink to movie: [{2}]\n".format(len(seatsList), seatsList, movie_link)
+    res = f"Found {len(seatsList)} available seats.\nList of seats: {seatsList}.\nLink to movie: [{movie_link}]\n"
     return res
+
 
 def read_cmd_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--showId', '-sid', help='please set tje show id using rather "-sid" or "--showId"', required=True)
+    parser.add_argument('--showId', '-sid', help='please set tje show id using rather "-sid" or "--showId"',
+                        required=True)
     return parser.parse_args()
 
 if __name__ == '__main__':
@@ -89,7 +103,7 @@ if __name__ == '__main__':
             previous_results = doAll(previous_results, movie_id)
         except Exception as e:
             print("Exception caught!!!")
-            print(e)
+            traceback.print_exc()
         # wait_minutes(0.1)
         wait_minutes(0.5)
         iteration += 1
